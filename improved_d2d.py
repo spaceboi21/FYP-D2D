@@ -603,6 +603,7 @@ def create_figure(df, viz_info, color=None):
                 )
     except Exception as e:
         logging.error(f"Error in creating figure: {e}")
+        print("done")
     return fig
 
 if __name__ == '__main__':

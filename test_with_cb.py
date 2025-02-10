@@ -52,7 +52,7 @@ login_manager = LoginManager()
 login_manager.init_app(server)
 login_manager.login_view = 'login'
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 # -----------------------------------------
 # 2) User Model

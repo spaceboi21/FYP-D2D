@@ -1,16 +1,43 @@
-# FYP-D2D
-<<<<<<< HEAD
-=======
+# AI Data Visualization Dashboard
 
+A Flask and Dash application that provides data visualization and analysis capabilities with AI-powered insights.
 
-In today’s data-driven world, making decisions based on data is crucial. But
-handling large amounts of data can be overwhelming. That’s where "Data 2 Dash"
-comes in. It’s a tool designed to help you visualize data, make informed decisions,
-and simplify data management for businesses of all sizes. Data 2 Dash not only
-organizes and presents past data in charts and graphs but also applies machine
-learning models with the best accuracy according to the dataset to forecast future
-trends. This advanced capability enables users to anticipate outcomes and make
-proactive decisions based on predictive insights. With its user-friendly interface,
-Data 2 Dash caters to both large companies and small startups, empowering users
-to harness the power of data effectively.
->>>>>>> 74a9459537746ea776844bfbacfd05fa3d4c3c22
+## Features
+
+- User authentication (login/signup)
+- CSV file upload and analysis
+- AI-powered data visualization recommendations
+- Interactive dashboards
+- Chat interface for data queries
+- Dashboard saving and loading
+
+## Tech Stack
+
+- **Backend**: Flask, FastAPI
+- **Frontend**: Dash, HTML, CSS
+- **Database**: MongoDB, SQLite
+- **AI/ML**: OpenAI GPT, Pinecone Vector Database
+- **Data Processing**: Pandas, NumPy, Scikit-learn
+- **Visualization**: Plotly
+
+## Setup
+
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Set up environment variables in `.env` file
+4. Run the application: `python app/new_ver.py`
+
+## Project Structure
+
+- `app/fastapi_chatbot.py`: FastAPI backend for chatbot functionality
+- `app/new_ver.py`: Main Flask and Dash application
+- `app/setup_db.py`: Database setup and initialization
+- `app/templates/`: HTML templates
+- `app/static/`: Static assets (CSS, JS, images)
+- `app/instance/`: Instance-specific files
+- `app/saved_dashboards/`: Saved user dashboards
+- `app/user_chats/`: User chat history
+
+## License
+
+MIT 

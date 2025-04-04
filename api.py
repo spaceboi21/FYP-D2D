@@ -1,4 +1,4 @@
-from langchain_pinecone import PineconeVectorStore
+from langchain_community.vectorstores import Pinecone
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import MessagesPlaceholder
@@ -66,7 +66,8 @@ def save_chat_history(session_id: str, chat_history: []):
 
 
 def load_db(index_name="test"):
-    db = PineconeVectorStore(index_name=index_name, embedding=OpenAIEmbeddings(model="text-embedding-ada-002", chunk_size=500))
+    embeddings = OpenAIEmbeddings(model="text-embedding-ada-002", chunk_size=500)
+    db = Pinecone.from_existing_index(index_name=index_name, embedding=embeddings)
     return db
 
 

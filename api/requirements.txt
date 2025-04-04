@@ -1,0 +1,21 @@
+# FastAPI and server
+fastapi
+uvicorn
+pydantic
+
+# Database
+pymongo
+
+# AI/ML
+langchain
+langchain-openai
+langchain-community
+pinecone-client
+openai
+
+# Data processing
+python-dotenv
+requests
+
+# Other utilities
+python-multipart 

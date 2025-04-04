@@ -1,34 +1,34 @@
 # FastAPI and server
-fastapi==0.110.0
-uvicorn==0.29.0
-pydantic==2.8.2
+fastapi
+uvicorn
+pydantic
 
 # Database
-pymongo==4.6.1
+pymongo
 
 # AI/ML
-langchain==0.1.9
-langchain-openai==0.0.6
-langchain-community==0.0.24
-pinecone-client==3.0.0
-openai==1.35.13
+langchain
+langchain-openai
+langchain-community
+pinecone-client
+openai
 
 # Data processing
-python-dotenv==1.0.1
-requests==2.32.3
+python-dotenv
+requests
 
 # Other utilities
-python-multipart==0.0.9
+python-multipart
 
 # Additional dependencies
-annotated-types==0.7.0
-anyio==4.4.0
-click==8.1.7
-colorama==0.4.6
-h11==0.14.0
-httpcore==1.0.5
-httpx==0.27.0
-idna==3.7
-sniffio==1.3.1
-starlette==0.36.3
-typing_extensions==4.12.2
+annotated-types
+anyio
+click
+colorama
+h11
+httpcore
+httpx
+idna
+sniffio
+starlette
+typing_extensions

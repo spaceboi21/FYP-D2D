@@ -1,21 +1,22 @@
 # FastAPI and server
-fastapi
-uvicorn
-pydantic
+fastapi==0.109.2
+uvicorn==0.29.0
+pydantic==2.7.3
 
 # Database
-pymongo
+pymongo==4.7.1
 
 # AI/ML
-langchain
-langchain-openai
-langchain-community
-pinecone-client
-openai
+langchain==0.1.0
+langchain-openai==0.0.5
+langchain-pinecone==0.2.4
+langchain-community==0.0.10
+pinecone-client==3.0.2
+openai==1.16.0
 
 # Data processing
-python-dotenv
-requests
+python-dotenv==1.0.1
+requests==2.31.0
 
 # Other utilities
 python-multipart
@@ -32,3 +33,17 @@ idna
 sniffio
 starlette
 typing_extensions
+
+# Added from the code block
+pandas==2.2.1
+dash==2.17.1
+dash-bootstrap-components==1.7.1
+flask==2.3.3
+flask-login==0.6.3
+flask-sqlalchemy==3.1.1
+plotly==5.20.0
+scikit-learn==1.4.1
+numpy==1.26.4
+matplotlib==3.9.1
+werkzeug==2.3.7
+gunicorn==21.2.0

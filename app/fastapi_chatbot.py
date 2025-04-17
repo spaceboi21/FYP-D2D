@@ -14,7 +14,7 @@ from io import StringIO
 from pymongo import MongoClient
 
 # Pinecone / LangChain
-from pinecone import Pinecone as PC, ServerlessSpec
+from pinecone import Pinecone, ServerlessSpec, CloudProvider, AwsRegion
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -93,14 +93,18 @@ os.makedirs(DASHBOARD_FOLDER, exist_ok=True)
 # ---------------------------------------------------
 # 2) Pinecone Initialization
 # ---------------------------------------------------
-pc = PC(api_key=PINECONE_API_KEY)
+pc = Pinecone(api_key=PINECONE_API_KEY)
 index_name = "fyp"  # 768 dims, metric=cosine
-if index_name not in pc.list_indexes().names():
+index_list = pc.list_indexes()
+if index_name not in [idx.name for idx in index_list]:
     pc.create_index(
         name=index_name,
         dimension=768,
         metric="cosine",
-        spec=ServerlessSpec(cloud="aws", region="us-east-1")
+        spec=ServerlessSpec(
+            cloud=CloudProvider.AWS,
+            region=AwsRegion.US_EAST_1
+        )
     )
 
 # ---------------------------------------------------
@@ -148,27 +152,31 @@ def save_chat_history(user_id: str, chat_history: List[Dict[str, str]]):
 # ---------------------------------------------------
 class UploadCSVModel(BaseModel):
     session_id: str
+    user_id: str
     csv_base64: str
 
 class AskModel(BaseModel):
     input: str
-    session_id: str
+    user_id: str = Field(..., description="Unique identifier for the user")
+    session_id: Optional[str] = None
+    chat_history: Optional[List[Dict[str, str]]] = None
 
 # ---------------------------------------------------
 # 3) Pinecone VectorStore + Retriever
 # ---------------------------------------------------
-def load_db():
+def load_db(user_id=None):
     store = PineconeVectorStore(
         index_name="fyp",
-        embedding=OpenAIEmbeddings(model="text-embedding-ada-002", openai_api_key=OPENAI_API_KEY)
+        embedding=OpenAIEmbeddings(model="text-embedding-ada-002", openai_api_key=OPENAI_API_KEY),
+        namespace=str(user_id) if user_id else "default"
     )
     return store
 
-def create_retriever():
+def create_retriever(user_id=None):
     embeddings = OpenAIEmbeddings(model="text-embedding-ada-002", openai_api_key=OPENAI_API_KEY)
     embeddings_filter = EmbeddingsFilter(embeddings=embeddings, similarity_threshold=0.76)
     
-    vector_db = load_db()
+    vector_db = load_db(user_id)
     retriever = vector_db.as_retriever(
         search_type="similarity_score_threshold",
         search_kwargs={"k": 5, "score_threshold": 0.8}
@@ -187,7 +195,7 @@ def create_retriever():
 # ---------------------------------------------------
 # 4) Agent with streaming LLM
 # ---------------------------------------------------
-def generate_agent_executor():
+def generate_agent_executor(user_id=None):
     llm = ChatOpenAI(
         openai_api_key=OPENAI_API_KEY,
         model="gpt-4",   # or "gpt-4o" if you have a custom name
@@ -197,13 +205,24 @@ def generate_agent_executor():
     )
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a helpful assistant with access to a retriever tool."),
+        ("system", """You are a helpful assistant with access to a retriever tool that can query a database of business data.
+        
+When you receive data from the retriever tool, carefully examine the actual values in the data and use them in your response.
+DO NOT use placeholder text like [department name] or [sales figure] - instead, extract the specific values from the returned data.
+
+For example:
+- If you see PRODUCTLINE: Ships, use "Ships" as the product line
+- If you see SALES: 3515.7, use "3515.7" as the sales value
+- If you see TOTAL: 250.35, use "250.35" as the total value
+
+Format numbers appropriately with proper currency symbols or units where applicable.
+Always base your answers on the actual data returned by the tool, not on general knowledge."""),
         MessagesPlaceholder("chat_history"),
         ("user", "{input}"),
         MessagesPlaceholder("agent_scratchpad"),
     ])
 
-    tool = create_retriever()
+    tool = create_retriever(user_id)
     agent = create_tool_calling_agent(llm, tools=[tool], prompt=prompt)
     agent_executor = AgentExecutor(
         agent=agent,
@@ -222,180 +241,43 @@ def upload_csv(payload: UploadCSVModel):
     Expects JSON like:
     {
       "session_id": "...",
+      "user_id": "...",
       "csv_base64": "base64 CSV data"
     }
-    Decodes + splits CSV, upserts into 'fyp' Pinecone index.
+    Decodes + splits CSV, upserts into 'fyp' Pinecone index using user's namespace.
     """
+    print(f"DEBUG: upload_csv endpoint called with session_id={payload.session_id}, user_id={payload.user_id}, csv_data_length={len(payload.csv_base64) if payload.csv_base64 else 0}")
     try:
         raw_b64 = payload.csv_base64
         decoded = base64.b64decode(raw_b64)
         csv_str = decoded.decode("utf-8", errors="ignore")
+        print(f"DEBUG: Decoded CSV data: {csv_str[:100]}...")
         df = pd.read_csv(StringIO(csv_str))
         if df.empty:
             raise ValueError("CSV is empty or invalid.")
 
+        print(f"DEBUG: CSV loaded successfully with {len(df)} rows and {len(df.columns)} columns")
         # Convert entire CSV to text, chunk it, then store
         csv_text = df.to_csv(index=False)
         splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
         chunks = splitter.split_text(csv_text)
         docs = [Document(page_content=ch) for ch in chunks]
+        print(f"DEBUG: Created {len(docs)} document chunks")
 
-        store = load_db()  # PineconeVectorStore
+        store = load_db(payload.user_id)  # PineconeVectorStore with user-specific namespace
         store.add_documents(docs)
+        print(f"DEBUG: Documents added to Pinecone successfully in namespace {payload.user_id}")
         return {"status":"success", "rows_ingested": len(df)}
     except Exception as e:
+        print(f"DEBUG: Error in upload_csv: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 # ---------------------------------------------------
 # 6) /ask Endpoint -> streaming response
 # ---------------------------------------------------
-# @app.post("/ask")
-# def ask_question(data: Dict[str, Any]):
-#     """
-#     Updated to use user_id for chat history and context
-#     """
-#     user_id = data.get("user_id")
-#     user_query = data.get("input")
-
-#     if not user_id:
-#         raise HTTPException(status_code=400, detail="User ID is required")
-
-#     # Load chat history from Mongo
-#     chat_history = get_chat_history(user_id)
-
-
-#     agent_executor = generate_agent_executor()
-
-#     async def token_generator():
-#         ai_response = ""
-#         # async for event in agent_executor.astream_events(
-#         #     {"input": user_query, "chat_history": chat_history},
-#         #     version="v1"
-#         # ):
-#         async for event in agent_executor.astream_events(
-#             {"input": user_query, "chat_history": chat_history if chat_history else []},
-#             version="v1"
-#         ):
-
-#             kind = event["event"]
-#             if kind == "on_chat_model_stream":
-#                 content = event["data"]["chunk"].content
-#                 if content:
-#                     ai_response += content
-#                     yield content
-        
-#         # Save chat logs
-#         chat_history.append({"role":"user", "content": user_query})
-#         chat_history.append({"role":"assistant", "content": ai_response})
-#         save_chat_history(session_id, chat_history)
-
-#     return StreamingResponse(token_generator(), media_type="text/event-stream")
-
-
-# Update the AskModel to be more flexible
-class AskModel(BaseModel):
-    input: str
-    user_id: str = Field(..., description="Unique identifier for the user")
-    session_id: Optional[str] = None
-    chat_history: Optional[List[Dict[str, str]]] = None
-
-# @app.post("/ask")
-# async def ask_question(data: AskModel):
-#     """
-#     Expects JSON:
-#     {
-#       "input": "User's query",
-#       "user_id": "unique_user_identifier",
-#       "session_id": "optional_session_id",
-#       "chat_history": [optional list of previous messages]
-#     }
-#     Returns a streaming text/event-stream response with partial tokens.
-#     """
-#     try:
-#         # Validate input
-#         if not data.input:
-#             raise HTTPException(status_code=400, detail="Input query is required")
-        
-#         if not data.user_id:
-#             raise HTTPException(status_code=400, detail="User ID is required")
-
-#         # Use user_id for chat history
-#         user_id = data.user_id
-#         user_query = data.input
-
-#         # Load or use provided chat history
-#         chat_history = data.chat_history or get_chat_history(user_id)
-
-#         # Convert chat history to LangChain format if needed
-#         formatted_chat_history = [
-#             {"role": entry.get("role", ""), "content": entry.get("content", "")} 
-#             for entry in chat_history
-#         ]
-
-#         # Generate agent executor (reuse your existing method)
-#         agent_executor = generate_agent_executor()
-
-#         async def token_generator():
-#             ai_response = ""
-#             try:
-#                 # Stream events from agent
-#                 async for event in agent_executor.astream_events(
-#                     {
-#                         "input": user_query, 
-#                         "chat_history": formatted_chat_history
-#                     },
-#                     version="v1"
-#                 ):
-#                     kind = event.get("event")
-#                     if kind == "on_chat_model_stream":
-#                         # Check if chunk is a dictionary or an AIMessageChunk object
-#                         chunk_data = event.get("data", {}).get("chunk", {})
-                        
-#                         # Handle different chunk formats
-#                         if hasattr(chunk_data, "content"):
-#                             # If it's an AIMessageChunk object
-#                             content = chunk_data.content
-#                         elif isinstance(chunk_data, dict):
-#                             # If it's a dictionary
-#                             content = chunk_data.get("content", "")
-#                         else:
-#                             # Fallback for other formats
-#                             content = str(chunk_data) if chunk_data else ""
-                        
-#                         if content:
-#                             ai_response += content
-#                             yield content
-                
-#                 # Save updated chat history to MongoDB for context handling
-#                 updated_chat_history = chat_history + [
-#                     {"role": "user", "content": user_query},
-#                     {"role": "assistant", "content": ai_response}
-#                 ]
-#                 save_chat_history(user_id, updated_chat_history)
-                
-#                 # Also save a separate entry for UI display purposes
-#                 from datetime import datetime
-#                 new_chat_entry = {
-#                     "user_id": user_id,
-#                     "query": user_query,
-#                     "response": ai_response,
-#                     "timestamp": datetime.utcnow().isoformat()
-#                 }
-#                 mongo_db["chat_display_history"].insert_one(new_chat_entry)
-
-#             except Exception as stream_error:
-#                 print(f"Streaming error: {stream_error}")
-#                 error_msg = f"Error during streaming: {str(stream_error)}"
-#                 yield error_msg
-
-#         return StreamingResponse(token_generator(), media_type="text/event-stream")
-
-#     except Exception as e:
-#         print(f"Ask route error: {e}")
-#         raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/ask")
 async def ask_question(data: AskModel):
+    print(f"DEBUG: ask endpoint called with user_id={data.user_id}, input={data.input}")
     try:
         if not data.input:
             raise HTTPException(status_code=400, detail="Input query is required")
@@ -407,16 +289,20 @@ async def ask_question(data: AskModel):
 
         # Get previous conversation from MongoDB.
         chat_history = data.chat_history or get_chat_history(user_id)
+        print(f"DEBUG: Retrieved chat history with {len(chat_history)} entries")
         formatted_chat_history = [
             {"role": entry.get("role", ""), "content": entry.get("content", "")}
             for entry in chat_history
         ]
 
-        agent_executor = generate_agent_executor()
+        # Pass user_id to generate_agent_executor for user-specific data retrieval
+        agent_executor = generate_agent_executor(user_id)
+        print(f"DEBUG: Created agent executor for user {user_id}")
 
         async def token_generator():
             ai_response = ""
             try:
+                print(f"DEBUG: Starting token generation")
                 async for event in agent_executor.astream_events(
                     {"input": user_query, "chat_history": formatted_chat_history},
                     version="v1"
@@ -431,6 +317,7 @@ async def ask_question(data: AskModel):
                             content = str(chunk_data) if chunk_data else ""
                         if content:
                             ai_response += content
+                            print(f"DEBUG: Generated token: {content}")
                             yield content
 
                 # Append the new messages to the conversation.
@@ -439,44 +326,16 @@ async def ask_question(data: AskModel):
                     {"role": "assistant", "content": ai_response}
                 ]
                 save_chat_history(user_id, updated_chat_history)
+                print(f"DEBUG: Chat history updated with new messages")
                 
             except Exception as stream_error:
-                print(f"Streaming error: {stream_error}")
+                print(f"DEBUG: Streaming error: {str(stream_error)}")
                 yield f"Error during streaming: {str(stream_error)}"
         
         return StreamingResponse(token_generator(), media_type="text/event-stream")
     except Exception as e:
-        print(f"Ask route error: {e}")
+        print(f"DEBUG: Ask route error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-# Ensure these helper functions are defined
-def get_chat_history(user_id: str) -> List[Dict[str, str]]:
-    """
-    Retrieve chat history for a specific user from MongoDB
-    """
-    try:
-        doc = collection.find_one({"user_id": user_id})
-        return doc.get("chat_history", []) if doc else []
-    except Exception as e:
-        print(f"Error retrieving chat history: {e}")
-        return []
-
-def save_chat_history(user_id: str, chat_history: List[Dict[str, str]]):
-    """
-    Save chat history for a specific user in MongoDB
-    """
-    try:
-        collection.update_one(
-            {"user_id": user_id},
-            {"$set": {"chat_history": chat_history}},
-            upsert=True
-        )
-    except Exception as e:
-        print(f"Error saving chat history: {e}")
-
 
 class SaveDashboardModel(BaseModel):
     user_id: str = Field(..., description="Unique identifier for the user")
@@ -516,7 +375,7 @@ def save_dashboard(payload: SaveDashboardModel):
         html_str = "\n".join(html_parts)
 
         # For Vercel: Store in MongoDB instead of file system
-        if mongo_client and mongo_db:
+        if mongo_client is not None and mongo_db is not None:
             dashboard_collection = mongo_db.get_collection("dashboards")
             dashboard_data = {
                 "user_id": payload.user_id,
@@ -558,7 +417,7 @@ def get_user_dashboards(user_id: str):
     Retrieve all dashboards for a specific user
     """
     # For Vercel: Get dashboards from MongoDB
-    if mongo_client and mongo_db:
+    if mongo_client is not None and mongo_db is not None:
         try:
             dashboard_collection = mongo_db.get_collection("dashboards")
             dashboards = list(dashboard_collection.find(
@@ -593,7 +452,7 @@ def load_user_dashboard(user_id: str, dashboard_name: str):
     Load a specific dashboard for a user
     """
     # For Vercel: Get dashboard from MongoDB
-    if mongo_client and mongo_db:
+    if mongo_client is not None and mongo_db is not None:
         try:
             dashboard_collection = mongo_db.get_collection("dashboards")
             dashboard = dashboard_collection.find_one({

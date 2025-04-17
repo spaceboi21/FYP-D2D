@@ -134,372 +134,6 @@ def logout():
 def dashboard():
     return redirect('/dash/')
 
-# # ✅ Initialize Dash inside Flask (restricted to logged-in users)
-# app = dash.Dash(
-#     __name__,
-#     server=server,
-#     routes_pathname_prefix='/dash/',
-#     external_stylesheets=[dbc.themes.FLATLY]
-# )
-
-# @app.server.before_request
-# def restrict_dash_access():
-#     if request.path.startswith('/dash/') and not current_user.is_authenticated:
-#         return redirect(url_for('login'))
-
-# # ✅ Cache Setup
-# cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache'})
-
-# app.layout = html.Div(
-#     style={
-#         "margin": "0",
-#         "padding": "0",
-#         "backgroundColor": "#081028",
-#         "minHeight": "100vh",
-#         "fontFamily": "'Open Sans', sans-serif"
-#     },
-#     children=[
-#     dcc.Location(id='url', refresh=True),
-
-#     # ---------------- NAVBAR ----------------
-#     dbc.NavbarSimple(
-#         brand="AI Data Viz Dashboard",
-#         color="dark",
-#         dark=True,
-#         className="shadow mb-4",
-#         brand_style={"fontSize": "1.5rem", "fontWeight": "bold", "color": "#ffffff"},
-#         style={
-#             "background": "linear-gradient(to right, #8e44ad, #3498db)",
-#             "border": "none",
-#             "textAlign": "center",
-#             "width": "100%",
-#             "padding": "10px",
-#             "margin": "0px",
-#         },
-#         fluid=True,
-#         children=[
-#             dbc.NavItem(dbc.Button("Logout", id="logout-button", color="danger", className="ml-auto"))
-#         ]
-#     ),
-
-#     # ---------------- MAIN UPLOAD + FORM + SUMMARIES ----------------
-#     dbc.Row(
-#         style={"padding": "20px"},
-#         children=[
-#             # 1) CSV UPLOAD
-#             dbc.Col(
-#                 width=2,
-#                 children=[
-#                     html.H4("Step 1: Upload Your CSV File", style={"color": "#ffffff", "marginBottom": "15px"}),
-#                     dcc.Upload(
-#                         id='upload-data',
-#                         children=html.Div(
-#                             ['Drag & Drop or ', html.A('Select File', style={"color": "#8ac4ff"})],
-#                             style={'fontWeight': 'bold', "color": "#8ac4ff"}
-#                         ),
-#                         style={
-#                             'width': '100%',
-#                             'height': '60px',
-#                             'lineHeight': '60px',
-#                             'borderWidth': '2px',
-#                             'borderStyle': 'dashed',
-#                             'borderRadius': '10px',
-#                             'textAlign': 'center',
-#                             'backgroundColor': '#3a1c70',
-#                             'background': 'linear-gradient(to right, #852cb7, #0f1134)',
-#                             'color': '#dcd0ff',
-#                             'boxSizing': 'border-box',
-#                             'display': 'inline-block',
-#                             'margin': '10px 0',
-#                         },
-#                         multiple=False
-#                     ),
-#                     html.Div(id='output-data-upload', style={"marginBottom":"10px"}),
-
-#                     # Ingest CSV to Pinecone
-#                     dbc.Button("Ingest CSV to Pinecone", id="ingest-button", color="success", className="mt-2"),
-#                     html.Div(id="ingest-status", style={"color": "#dcd0f2", "marginTop": "10px"})
-#                 ]
-#             ),
-
-#             # 2) FORM: DATA EXPLORATION GOALS
-#             dbc.Col(
-#                 width=4,
-#                 children=[
-#                     html.H4("Step 2: Define Your Data Exploration Goals", style={"color": "#ffffff", "marginBottom": "15px"}),
-#                     dbc.Form([
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Most important aspect to find in this dataset:", style={"color": "#dcd0ff"}),
-#                                 dbc.Input(
-#                                     id='data-aspect', type='text',
-#                                     placeholder="e.g., Trends over time, correlations",
-#                                     style={
-#                                         "backgroundColor": "#2c1e4e",
-#                                         "color": "#dcd0ff",
-#                                         "border": "1px solid #8ac4ff",
-#                                         "borderRadius": "5px",
-#                                         "padding": "10px",
-#                                         "fontSize": "14px"
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Specific ranges of interest:", style={"color": "#dcd0ff"}),
-#                                 dbc.Input(
-#                                     id='range-interest', type='text',
-#                                     placeholder="e.g., Date range, value range",
-#                                     style={
-#                                         "backgroundColor": "#2c1e4e",
-#                                         "color": "#dcd0ff",
-#                                         "border": "1px solid #8ac4ff",
-#                                         "borderRadius": "5px",
-#                                         "padding": "10px",
-#                                         "fontSize": "14px"
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Story you want to tell with this data:", style={"color": "#dcd0ff"}),
-#                                 dbc.Input(
-#                                     id='story-goal', type='text',
-#                                     placeholder="e.g., Sales growth over the last year",
-#                                     style={
-#                                         "backgroundColor": "#2c1e4e",
-#                                         "color": "#dcd0ff",
-#                                         "border": "1px solid #8ac4ff",
-#                                         "borderRadius": "5px",
-#                                         "padding": "10px",
-#                                         "fontSize": "14px"
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Specific parameters to check in the frontend:", style={"color": "#dcd0ff"}),
-#                                 dbc.Input(
-#                                     id='param-check', type='text',
-#                                     placeholder="e.g., Certain columns or thresholds",
-#                                     style={
-#                                         "backgroundColor": "#2c1e4e",
-#                                         "color": "#dcd0ff",
-#                                         "border": "1px solid #8ac4ff",
-#                                         "borderRadius": "5px",
-#                                         "padding": "10px",
-#                                         "fontSize": "14px"
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Prioritize the visualization goals:", style={"color": "#dcd0ff"}),
-#                                 dbc.Input(
-#                                     id='viz-priority', type='text',
-#                                     placeholder="e.g., 1. Correlation, 2. Trends",
-#                                     style={
-#                                         "backgroundColor": "#2c1e4e",
-#                                         "color": "#dcd0ff",
-#                                         "border": "1px solid #8ac4ff",
-#                                         "borderRadius": "5px",
-#                                         "padding": "10px",
-#                                         "fontSize": "14px"
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Enter the sample size to visualize:", style={"color": "#dcd0ff"}),
-#                                 dbc.Input(
-#                                     id='sample-size', type='number',
-#                                     placeholder="e.g., 1000",
-#                                     style={
-#                                         "backgroundColor": "#2c1e4e",
-#                                         "color": "#dcd0ff",
-#                                         "border": "1px solid #8ac4ff",
-#                                         "borderRadius": "5px",
-#                                         "padding": "10px",
-#                                         "fontSize": "14px"
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Row([
-#                             dbc.Col([
-#                                 dbc.Label("Select a color scheme:", style={"color": "#ffffff"}),
-#                                 dcc.Dropdown(
-#                                     id='color-scheme',
-#                                     options=[
-#                                         {'label': 'Plotly', 'value': 'Plotly'},
-#                                         {'label': 'D3', 'value': 'D3'},
-#                                         {'label': 'G10', 'value': 'G10'},
-#                                         {'label': 'T10', 'value': 'T10'},
-#                                         {'label': 'Alphabet', 'value': 'Alphabet'},
-#                                         {'label': 'Dark24', 'value': 'Dark24'},
-#                                         {'label': 'Light24', 'value': 'Light24'},
-#                                         {'label': 'Set1', 'value': 'Set1'},
-#                                         {'label': 'Pastel', 'value': 'Pastel'},
-#                                         {'label': 'Viridis', 'value': 'Viridis'},
-#                                         {'label': 'Cividis', 'value': 'Cividis'},
-#                                         {'label': 'Inferno', 'value': 'Inferno'},
-#                                         {'label': 'Magma', 'value': 'Magma'},
-#                                         {'label': 'Plasma', 'value': 'Plasma'},
-#                                     ],
-#                                     value='Plotly',
-#                                     placeholder="Select a color scheme",
-#                                     style={
-#                                         'backgroundColor': '#3a1c70',
-#                                         'color': '#dcd0ff'
-#                                     }
-#                                 ),
-#                             ], width=12),
-#                         ], className="mb-3"),
-
-#                         dbc.Button(
-#                             "Submit",
-#                             id='submit-button',
-#                             color="primary",
-#                             className='w-100',
-#                             style={
-#                                 "background": "linear-gradient(to right, #8e44ad, #3498db)",
-#                                 "border": "none",
-#                                 "marginTop": "10px"
-#                             }
-#                         ),
-#                     ])
-#                 ]
-#             ),
-
-#             # 3) STATISTICAL SUMMARIES
-#             dbc.Col(
-#                 width=6,
-#                 children=[
-#                     html.H4("Statistical Summaries", style={"color": "#ffffff"}),
-#                     dcc.Loading(
-#                         id="loading-summary",
-#                         type="default",
-#                         children=html.Div(id='statistical-summary')
-#                     )
-#                 ]
-#             )
-#         ]
-#     ),
-
-#     html.Hr(style={"borderColor": "#dcd0ff"}),  # Purple line separator
-
-#     # ---------------- GENERATED VISUALIZATIONS ----------------
-#     dbc.Container(
-#         fluid=True,
-#         style={
-#             "background": "linear-gradient(to right, #8e44ad, #3498db)",  # Gradient background
-#             "margin": "0",
-#             "padding": "20px",
-#             "borderRadius": "15px",
-#             "boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.1)",
-#             "width": "100%"
-#         },
-#         children=[
-#             html.H4(
-#                 "Generated Visualizations",
-#                 style={
-#                     "color": "#ffffff",
-#                     "textAlign": "center",
-#                     "marginBottom": "20px"
-#                 }
-#             ),
-#             dbc.Container(
-#                 id='graphs-container',
-#                 fluid=True,
-#                 style={
-#                     "margin": "20px auto",
-#                     "padding": "20px",
-#                     "borderRadius": "15px",
-#                     "backgroundColor": "#081028",  # Dark background for graphs
-#                     "boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.2)",
-#                     "width": "90%",
-#                     "color": "#ffffff"
-#                 }
-#             )
-#         ]
-#     ),
-
-#     html.Hr(style={"borderColor": "#dcd0ff"}),
-
-#     # ---------------- CHAT WITH CSV SECTION ----------------
-#     dbc.Container(
-#         fluid=True,
-#         style={
-#             "padding":"20px",
-#             "backgroundColor":"#081028"
-#         },
-#         children=[
-#             html.H3("Chat with Your CSV (Pinecone Data)", style={"color":"#ffffff","marginBottom":"15px"}),
-#             dbc.Card(
-#                 style={"backgroundColor":"#2c1e4e","padding":"15px","border":"none"},
-#                 children=[
-#                     dbc.Row([
-#                         dbc.Col([
-#                             dcc.Input(
-#                                 id="chat-input",
-#                                 type="text",
-#                                 placeholder="Ask a question about the data...",
-#                                 style={
-#                                     "width":"100%",
-#                                     "backgroundColor":"#1d1b31",
-#                                     "color":"#ffffff",
-#                                     "border":"1px solid #8ac4ff",
-#                                     "borderRadius":"5px",
-#                                     "padding":"10px",
-#                                     "fontSize":"14px"
-#                                 }
-#                             )
-#                         ], width=8),
-#                         dbc.Col([
-#                             html.Button(
-#                                 "Ask Chatbot",
-#                                 id="chat-button",
-#                                 n_clicks=0,
-#                                 style={
-#                                     "background":"linear-gradient(to right, #8e44ad, #3498db)",
-#                                     "border":"none",
-#                                     "color":"#fff",
-#                                     "padding":"10px 20px",
-#                                     "borderRadius":"5px",
-#                                     "fontSize":"14px",
-#                                     "marginLeft":"10px",
-#                                     "cursor":"pointer"
-#                                 }
-#                             )
-#                         ], width=4, style={"textAlign":"right"})
-#                     ], justify="start"),
-
-#                     html.Div(
-#                         id="chat-response",
-#                         style={
-#                             "color":"#dcd0f2",
-#                             "marginTop":"20px",
-#                             "whiteSpace":"pre-wrap"
-#                         }
-#                     )
-#                 ]
-#             )
-#         ]
-#     )
-# ],
-# )
-
 # ✅ Initialize Dash inside Flask (restricted to logged-in users)
 app = dash.Dash(
     __name__,
@@ -510,12 +144,14 @@ app = dash.Dash(
 
 @app.server.before_request
 def restrict_dash_access():
+    print(f"DEBUG: before_request - path={request.path}, authenticated={current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'Unknown'}")
     if request.path.startswith('/dash/') and not current_user.is_authenticated:
         return redirect(url_for('login'))
 
 # ✅ Cache Setup
 cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache'})
 
+print("DEBUG: Creating Dash app layout")
 app.layout = html.Div(
     style={
         "margin": "0",
@@ -526,6 +162,9 @@ app.layout = html.Div(
     },
     children=[
         dcc.Location(id='url', refresh=True),
+        
+        # Add a hidden div to store the current user ID
+        html.Div(id='current-user-store', style={'display': 'none'}, children="0"),
 
         # ---------------- NAVBAR ----------------
         dbc.NavbarSimple(
@@ -1029,7 +668,7 @@ def save_dashboard_for_user(user_id, figures):
 
         # Send to FastAPI endpoint
         response = requests.post(
-            "http://localhost:8000/save_dashboard", 
+            "http://localhost:8001/save_dashboard", 
             json=dashboard_data
         )
 
@@ -1050,7 +689,7 @@ def fetch_user_dashboards(user_id):
     Fetch saved dashboards for a specific user
     """
     try:
-        response = requests.get(f"http://localhost:8000/get_user_dashboards/{user_id}")
+        response = requests.get(f"http://localhost:8001/get_user_dashboards/{user_id}")
         if response.status_code == 200:
             return response.json().get("dashboards", [])
         else:
@@ -1065,7 +704,7 @@ def load_user_dashboard(user_id, dashboard_name):
     Load a specific dashboard for a user
     """
     try:
-        response = requests.get(f"http://localhost:8000/load_user_dashboard/{user_id}/{dashboard_name}")
+        response = requests.get(f"http://localhost:8001/load_user_dashboard/{user_id}/{dashboard_name}")
         if response.status_code == 200:
             # You might want to parse the HTML and recreate Plotly figures
             return response.text
@@ -1081,19 +720,23 @@ import requests
 @app.callback(
     Output("chat-response", "children"),
     [Input("chat-button", "n_clicks")],
-    [State("chat-input", "value")]
+    [State("chat-input", "value"),
+     State('current-user-store', 'children')]
 )
-def ask_chatbot(n_clicks, query):
+def ask_chatbot(n_clicks, query, user_id):
+    print(f"DEBUG: ask_chatbot callback triggered, n_clicks={n_clicks}, query={query}, user_id={user_id}")
     if n_clicks and query:
-        fastapi_ask_url = "http://127.0.0.1:8000/ask"
+        fastapi_ask_url = "http://127.0.0.1:8001/ask"
         
         payload = {
             "input": query,
-            "user_id": str(current_user.id)  # Ensure user_id is a string
+            "user_id": user_id  # Use user_id from the store
         }
         
+        print(f"DEBUG: Sending request to {fastapi_ask_url} with user_id={payload['user_id']}, query={query}")
         try:
             r = requests.post(fastapi_ask_url, json=payload, stream=True, timeout=30)
+            print(f"DEBUG: Response status={r.status_code}")
             if r.status_code != 200:
                 error_details = r.text
                 return f"Error from chatbot server: {r.status_code} - {error_details}"
@@ -1103,19 +746,18 @@ def ask_chatbot(n_clicks, query):
                 if chunk:
                     decoded_chunk = chunk.decode("utf-8", errors="ignore")
                     full_text += decoded_chunk
+                    print(f"DEBUG: Received chunk: {decoded_chunk[:50]}...")
 
-            # Do NOT save to SQL here—rely on the FastAPI endpoint to update MongoDB.
-            # Also, do not call update_chat_history() manually.
             return full_text
 
         except requests.exceptions.RequestException as req_error:
             error_message = f"Request failed: {str(req_error)}"
-            print(error_message)
+            print(f"DEBUG: Request exception: {error_message}")
             return error_message
         
         except Exception as e:
             error_message = f"Unexpected error: {str(e)}"
-            print(error_message)
+            print(f"DEBUG: Unexpected exception: {error_message}")
             return error_message
 
     return ""
@@ -1849,6 +1491,7 @@ def logout_and_redirect(n_clicks):
     Input('upload-data', 'contents')
 )
 def display_filename(contents):
+    print("DEBUG: display_filename callback triggered")
     if contents:
         return html.Div("File uploaded successfully.", style={'color': '#dcd0f2','marginBottom':'10px'})
     return html.Div()
@@ -1859,30 +1502,35 @@ def display_filename(contents):
 @app.callback(
     Output("ingest-status", "children"),
     [Input("ingest-button", "n_clicks")],
-    [State("upload-data", "contents")]
+    [State("upload-data", "contents"),
+     State('current-user-store', 'children')]
 )
-def ingest_csv_to_pinecone(n_clicks, contents):
+def ingest_csv_to_pinecone(n_clicks, contents, user_id):
     """
     Call the FastAPI /upload_csv endpoint with base64 CSV.
     """
+    print(f"DEBUG: ingest_csv_to_pinecone callback triggered, n_clicks={n_clicks}, contents_length={len(contents) if contents else 0}, user_id={user_id}")
     if n_clicks:
         if not contents:
             return "No CSV uploaded yet."
-        fastapi_url = "http://127.0.0.1:8000/upload_csv"
-        session_id = str(current_user.id)
-        b64_data = contents.split(",")[1]
+        fastapi_url = "http://127.0.0.1:8001/upload_csv"
+        content_type, content_string = contents.split(',')
+        b64_data = content_string
         payload = {
-            "session_id": session_id,
+            "session_id": user_id,  # Use user_id from the store
             "csv_base64": b64_data
         }
+        print(f"DEBUG: Sending request to {fastapi_url} with session_id={user_id}, payload_size={len(b64_data)}")
         try:
             r = requests.post(fastapi_url, json=payload, timeout=30)
+            print(f"DEBUG: Response status={r.status_code}, content={r.text[:100]}")
             if r.status_code == 200:
                 resp_data = r.json()
                 return f"Ingestion Success. Rows Ingested: {resp_data.get('rows_ingested')}"
             else:
                 return f"Error from server: {r.status_code} - {r.text}"
         except Exception as e:
+            print(f"DEBUG: Exception in ingest_csv_to_pinecone: {str(e)}")
             return f"Request failed: {str(e)}"
     return ""
 
@@ -1904,90 +1552,6 @@ def ingest_csv_to_pinecone(n_clicks, contents):
     State('sample-size', 'value'),
     State('color-scheme', 'value')
 )
-# def update_graph(n_clicks, contents, aspect, range_interest, story_goal, param_check, viz_priority, sample_size, color_scheme):
-#     logging.info("Update Graph Callback triggered")
-#     if contents and n_clicks:
-#         df = parse_contents(contents)
-#         if df is not None:
-#             # Possibly handle_missing_values(df) if you want
-#             df_original = df.copy()
-#             df = get_sample(df, sample_size)
-
-#             # 1) Summaries
-#             summary_cards = generate_statistical_cards(df_original)
-
-#             # 2) Use GPT to suggest cleaning steps & visuals
-#             prompt = generate_prompt(df, aspect, range_interest, story_goal, param_check, viz_priority)
-#             cleaning_steps, visualization_suggestions, ml_steps = query_openai(prompt)
-#             df = apply_data_cleaning(df, cleaning_steps)
-#             if df.empty:
-#                 logging.warning("DataFrame empty after cleaning. No visuals to show.")
-#                 return summary_cards, [html.Div("No data available after cleaning.", style={'color': 'red'})]
-
-#             # 3) ML models
-#             predictions = apply_ml_models(df, ml_steps)
-
-#             # 4) Build figures
-#             figures = []
-#             for i, viz in enumerate(visualization_suggestions):
-#                 logging.info(f"Creating figure {i+1}")
-#                 fig = create_figure(df, viz, color_scheme)
-#                 if fig is not None:
-#                     figures.append(dcc.Graph(figure=fig, id=f'graph-output{i+1}'))
-#                 else:
-#                     logging.warning(f"Figure {i+1} could not be created.")
-
-#             # 5) If ML predictions exist, visualize them
-#             if 'time_series_forecasting' in predictions:
-#                 pred_df = predictions['time_series_forecasting']
-#                 date_col = pred_df.columns[0]
-#                 target_col = pred_df.columns[1]
-#                 fig = px.line(pred_df, x=date_col, y=target_col,
-#                               title='Time Series Forecast',
-#                               color_discrete_sequence=get_color_palette(color_scheme))
-#                 figures.append(dcc.Graph(figure=fig, id='ml-graph-1'))
-
-#             if 'regression_analysis' in predictions:
-#                 result = predictions['regression_analysis']
-#                 coeffs = result['coefficients'].reset_index()
-#                 coeffs.columns = ['Feature','Coefficient']
-#                 fig = px.bar(coeffs, x='Feature', y='Coefficient',
-#                              title='Regression Coefficients',
-#                              color_discrete_sequence=get_color_palette(color_scheme))
-#                 figures.append(dcc.Graph(figure=fig, id='ml-graph-2'))
-
-#             # 6) Layout figures in rows
-#             rows = []
-#             for i in range(0, len(figures), 2):
-#                 row = dbc.Row([
-#                     dbc.Col(figures[i], width=6) if i<len(figures) else None,
-#                     dbc.Col(figures[i+1], width=6) if i+1<len(figures) else None
-#                 ], style={'marginBottom': '20px'})
-#                 rows.append(row)
-
-#             return summary_cards, rows
-#         # 7) Save dashboard as HTML file
-#         import uuid  # Make sure to import uuid at the top of your file if not already imported
-
-#         # Create a unique filename based on the user ID and a random UUID.
-#         file_name = f"dashboard_user{current_user.id}_{uuid.uuid4().hex}.html"
-#         file_path = os.path.join("saved_dashboards", file_name)
-#         os.makedirs("saved_dashboards", exist_ok=True)
-
-#         if figures:  # Save only if there are figures
-#             # Extract the Plotly figure objects from the dcc.Graph components.
-#             # (Assumes each Graph component has a .figure attribute.)
-#             plotly_figs = [graph.figure for graph in figures if hasattr(graph, 'figure')]
-#             # Save all figures into one HTML file.
-#             save_dashboard_html(plotly_figs, file_path)
-#             # Create a new record in the Dashboard table.
-#             new_dash = Dashboard(user_id=current_user.id, file_path=file_path)
-#             db.session.add(new_dash)
-#             db.session.commit()
-
-
-#     return html.Div(), []
-
 def update_graph(n_clicks, contents, aspect, range_interest, story_goal, param_check, viz_priority, sample_size, color_scheme):
     logging.info("Update Graph Callback triggered")
     if contents and n_clicks:
@@ -2063,7 +1627,7 @@ def update_graph(n_clicks, contents, aspect, range_interest, story_goal, param_c
 
                 # Send dashboard to FastAPI endpoint
                 response = requests.post(
-                    "http://localhost:8000/save_dashboard", 
+                    "http://localhost:8001/save_dashboard", 
                     json=dashboard_data
                 )
 
@@ -2082,119 +1646,78 @@ def update_graph(n_clicks, contents, aspect, range_interest, story_goal, param_c
 
 # Modify save_dashboard_html function to be more flexible
 def save_dashboard_html(figures, file_path):
-    """
-    Combines a list of Plotly figures into one HTML page and saves it.
-    More robust version that handles different figure types.
-    """
+    """Save a list of plotly figures as an HTML dashboard."""
     try:
+        # Create dashboard HTML with all figures
         html_parts = [
+            "<!DOCTYPE html>",
             "<html>",
             "<head>",
-            "<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>",
-            "<style>",
-            "body { margin: 0; padding: 0; font-family: Arial, sans-serif; }",
-            ".dashboard { display: flex; flex-wrap: wrap; justify-content: center; }",
-            ".graph-container { width: 50%; padding: 10px; box-sizing: border-box; }",
-            "</style>",
+            "    <title>Saved Dashboard</title>",
+            "    <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>",
+            "    <link href='https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap' rel='stylesheet'>",
+            "    <style>",
+            "        body { font-family: 'Open Sans', sans-serif; margin: 0; padding: 20px; background: #f5f8fa; }",
+            "        .dashboard-container { max-width: 1200px; margin: 0 auto; }",
+            "        .chart-container { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; padding: 15px; }",
+            "        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }",
+            "    </style>",
             "</head>",
             "<body>",
-            "<div class='dashboard'>"
+            "    <h1>Saved Dashboard</h1>",
+            "    <div class='dashboard-container'>"
         ]
-
-        for fig in figures:
-            # Check if figure is a Plotly figure or already an HTML string
-            if hasattr(fig, 'to_html'):
-                html_snippet = fig.to_html(include_plotlyjs=False, full_html=False)
-            elif isinstance(fig, str):
-                html_snippet = fig
-            else:
-                logging.warning(f"Unsupported figure type: {type(fig)}")
-                continue
-
-            # Wrap each figure in a container div
-            html_parts.append(f"<div class='graph-container'>{html_snippet}</div>")
-
+        
+        # Add each figure to the HTML
+        for i, fig_html in enumerate(figures):
+            html_parts.append(f"<div class='chart-container' id='chart-{i}'>{fig_html}</div>")
+            
+        # Close HTML structure
         html_parts.extend([
-            "</div>",
+            "    </div>",
             "</body>",
             "</html>"
         ])
-
-        html_str = "\n".join(html_parts)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(html_str)
         
-        logging.info(f"Dashboard saved to {file_path}")
+        # Write to file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(html_parts))
+            
+        return True
     except Exception as e:
-        logging.error(f"Error saving dashboard HTML: {e}")
+        print(f"Error saving dashboard: {str(e)}")
+        return False
 
+# Add a clientside callback to help with user authentication
+app.clientside_callback(
+    """
+    function(n_intervals) {
+        console.log("Clientside callback triggered");
+        return document.querySelector('body').getAttribute('data-user-id') || "0";
+    }
+    """,
+    Output('current-user-store', 'children'),
+    Input('url', 'pathname')
+)
 
-# ------------------------------------------------
-# 9) Callback: Ask Chatbot
-# ------------------------------------------------
-# @app.callback(
-#     Output("chat-response", "children"),
-#     [Input("chat-button", "n_clicks")],
-#     [State("chat-input", "value")]
-# )
-# def ask_chatbot(n_clicks, query):
-#     if n_clicks and query:
-#         fastapi_ask_url = "http://127.0.0.1:8000/ask"
-#         session_id = str(current_user.id)
-#         payload = {
-#             "input": query,
-#             "session_id": session_id
-#         }
-#         try:
-#             r = requests.post(fastapi_ask_url, json=payload, stream=True, timeout=30)
-#             if r.status_code != 200:
-#                 return f"Error from chatbot server: {r.status_code}"
-
-#             full_text = ""
-#             for chunk in r.iter_content(chunk_size=1024):
-#                 if chunk:
-#                     full_text += chunk.decode("utf-8", errors="ignore")
-#             return full_text
-#         except Exception as e:
-#             return f"Request failed: {str(e)}"
-#     return ""
-
-# @app.callback(
-#     Output("chat-response", "children"),
-#     [Input("chat-button", "n_clicks")],
-#     [State("chat-input", "value")]
-# )
-# def ask_chatbot(n_clicks, query):
-#     if n_clicks and query:
-#         fastapi_ask_url = "http://127.0.0.1:8000/ask"
-#         session_id = str(current_user.id)
-#         payload = {
-#             "input": query,
-#             "session_id": session_id
-#         }
-#         try:
-#             r = requests.post(fastapi_ask_url, json=payload, stream=True, timeout=30)
-#             if r.status_code != 200:
-#                 return f"Error from chatbot server: {r.status_code}"
-
-#             full_text = ""
-#             for chunk in r.iter_content(chunk_size=1024):
-#                 if chunk:
-#                     full_text += chunk.decode("utf-8", errors="ignore")
-
-#             # Save the chat history to the database.
-#             new_chat = ChatHistory(user_id=current_user.id, query=query, response=full_text)
-#             db.session.add(new_chat)
-#             db.session.commit()
-
-#             return full_text
-#         except Exception as e:
-#             return f"Request failed: {str(e)}"
-#     return ""
-
+# Also add data-user-id to the body tag
+@app.server.after_request
+def add_user_id_to_body(response):
+    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+        print(f"DEBUG: Adding user_id={current_user.id} to body tag")
+        try:
+            if response.content_type and 'text/html' in response.content_type:
+                response_data = response.get_data(as_text=True)
+                # Add data-user-id attribute to the body tag
+                modified_data = response_data.replace('<body', f'<body data-user-id="{current_user.id}"')
+                response.set_data(modified_data)
+        except Exception as e:
+            print(f"DEBUG: Error modifying response: {str(e)}")
+    return response
 
 # ------------------------------------------------
 # 10) Main
 # ------------------------------------------------
 if __name__ == '__main__':
-    server.run(debug=True, port=5000)
+    # server.run(debug=True, port=5000)
+    server.run(debug=True, host='localhost', port=5001, use_reloader=False)

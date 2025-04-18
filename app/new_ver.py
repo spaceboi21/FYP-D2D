@@ -730,7 +730,8 @@ def ask_chatbot(n_clicks, query, user_id):
         
         payload = {
             "input": query,
-            "user_id": user_id  # Use user_id from the store
+            "user_id": user_id,  # Use user_id from the store
+            "session_id": user_id  # Optional, but can be kept for compatibility
         }
         
         print(f"DEBUG: Sending request to {fastapi_ask_url} with user_id={payload['user_id']}, query={query}")
@@ -835,17 +836,6 @@ def update_chat_history(n_clicks=None, n_intervals=None):
             # Use improved chat bubble styling
             if role == "user":
                 bubble_style = {
-                    "backgroundColor": "#f5f507",  # light green for user
-                    "color": "#000",
-                    "padding": "12px 16px",
-                    "borderRadius": "15px",
-                    "maxWidth": "70%",
-                    "marginBottom": "8px",
-                    "alignSelf": "flex-start",
-                    "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)"
-                }
-            else:
-                bubble_style = {
                     "backgroundColor": "#f1f0f0",  # light grey for assistant
                     "color": "#000",
                     "padding": "12px 16px",
@@ -853,6 +843,17 @@ def update_chat_history(n_clicks=None, n_intervals=None):
                     "maxWidth": "70%",
                     "marginBottom": "8px",
                     "alignSelf": "flex-end",
+                    "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)"
+                }
+            else:
+                bubble_style = {
+                    "backgroundColor": "#f5f507",  # light green for user
+                    "color": "#000",
+                    "padding": "12px 16px",
+                    "borderRadius": "15px",
+                    "maxWidth": "70%",
+                    "marginBottom": "8px",
+                    "alignSelf": "flex-start",
                     "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)"
                 }
             
@@ -1518,6 +1519,7 @@ def ingest_csv_to_pinecone(n_clicks, contents, user_id):
         b64_data = content_string
         payload = {
             "session_id": user_id,  # Use user_id from the store
+            "user_id": user_id,     # Add user_id field
             "csv_base64": b64_data
         }
         print(f"DEBUG: Sending request to {fastapi_url} with session_id={user_id}, payload_size={len(b64_data)}")

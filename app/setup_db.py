@@ -1,5 +1,5 @@
 # Import all models (User, Dashboard, ChatHistory, etc.)
-from test_with_cb import server, db
+from new_ver import server, db
  # This ensures all models in dash_flask_app.py are registered with SQLAlchemy.
 
 import os

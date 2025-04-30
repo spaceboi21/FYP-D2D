@@ -528,8 +528,8 @@ app = dash.Dash(
     __name__,
     server=server,
     routes_pathname_prefix='/dash/',
-    external_stylesheets=[dbc.themes.DARKLY],
-    title="Data Insights Dashboard"
+    external_stylesheets=[dbc.themes.BOOTSTRAP],  # Changed from DARKLY to BOOTSTRAP
+    title="Data2Dash"  # Updated title
 )
 
 app.config.suppress_callback_exceptions = True
@@ -537,10 +537,7 @@ app.scripts.config.serve_locally = True
 app.css.config.serve_locally = True
 
 # Set up caching
-cache = Cache(app.server, config={
-    'CACHE_TYPE': 'simple',
-    'CACHE_DEFAULT_TIMEOUT': 300
-})
+cache = Cache(app.server, config={'CACHE_TYPE': 'SimpleCache'})
 
 @app.server.before_request
 def restrict_dash_access():
@@ -562,410 +559,596 @@ app.layout = html.Div(
     },
     children=[
         dcc.Location(id='url', refresh=True),
-        
-        # Add a hidden div to store the current user ID
         html.Div(id='current-user-store', style={'display': 'none'}, children="0"),
 
         # ---------------- NAVBAR ----------------
-        dbc.NavbarSimple(
-            brand="AI Data Viz Dashboard",
+        dbc.Navbar(
+            className="navbar-gradient",
             color="dark",
             dark=True,
-            className="shadow mb-4",
-            brand_style={"fontSize": "1.5rem", "fontWeight": "bold", "color": "#ffffff"},
             style={
-                "background": "linear-gradient(to right, #8e44ad, #3498db)",
-                "border": "none",
-                "textAlign": "center",
-                "width": "100%",
-                "padding": "10px",
-                "margin": "0px",
+                "padding": "15px 0",
+                "borderBottom": "2px solid #eee",
+                "background": "linear-gradient(to right, #8e44ad, #3498db)"
             },
-            fluid=True,
             children=[
-                dbc.NavItem(dbc.Button("Logout", id="logout-button", color="danger", className="ml-auto"))
-            ]
-        ),
-
-        # ---------------- MAIN UPLOAD + FORM + SUMMARIES ----------------
-        dbc.Row(
-            style={"padding": "20px"},
-            children=[
-                # 1) CSV UPLOAD
-                dbc.Col(
-                    width=2,
-                    children=[
-                        html.H4("Step 1: Upload Your CSV File", style={"color": "#ffffff", "marginBottom": "15px"}),
-                        dcc.Upload(
-                            id='upload-data',
-                            children=html.Div(
-                                ['Drag & Drop or ', html.A('Select File', style={"color": "#8ac4ff"})],
-                                style={'fontWeight': 'bold', "color": "#8ac4ff"}
+                dbc.Container([
+                    dbc.Row([
+                        dbc.Col(
+                            html.Span(
+                                "Data2Dash",
+                                className="gradient-brand",
+                                style={
+                                    "fontWeight": "780",
+                                    "fontSize": "2.5rem",
+                                    "letterSpacing": "1px",
+                                    "color": "#081028"
+                                }
                             ),
-                            style={
-                                'width': '100%',
-                                'height': '60px',
-                                'lineHeight': '60px',
-                                'borderWidth': '2px',
-                                'borderStyle': 'dashed',
-                                'borderRadius': '10px',
-                                'textAlign': 'center',
-                                'backgroundColor': '#3a1c70',
-                                'background': 'linear-gradient(to right, #852cb7, #0f1134)',
-                                'color': '#dcd0ff',
-                                'boxSizing': 'border-box',
-                                'display': 'inline-block',
-                                'margin': '10px 0',
-                            },
-                            multiple=False
+                            width="auto"
                         ),
-                        html.Div(id='output-data-upload', style={"marginBottom": "10px"}),
-
-                        # Ingest CSV to Pinecone
-                        dbc.Button("Ingest CSV to Pinecone", id="ingest-button", color="success", className="mt-2"),
-                        html.Div(id="ingest-status", style={"color": "#dcd0f2", "marginTop": "10px"})
-                    ]
-                ),
-
-                # 2) FORM: DATA EXPLORATION GOALS
-                dbc.Col(
-                    width=4,
-                    children=[
-                        html.H4("Step 2: Define Your Data Exploration Goals", style={"color": "#ffffff", "marginBottom": "15px"}),
-                        dbc.Form([
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Most important aspect to find in this dataset:", style={"color": "#dcd0ff"}),
-                                    dbc.Input(
-                                        id='data-aspect', type='text',
-                                        placeholder="e.g., Trends over time, correlations",
+                        dbc.Col(
+                            dbc.Nav(
+                                [
+                                    dbc.NavLink("Upload Data", href="#step1", className="nav-link-custom", style={
+                                        "color": "#081028",
+                                        "fontWeight": "bold",
+                                        "textDecoration": "none",
+                                        "transition": "all 0.3s ease",
+                                    }),
+                                    dbc.NavLink("Set Data Goals", href="#step2", className="nav-link-custom", style={
+                                        "color": "#081028",
+                                        "fontWeight": "bold",
+                                        "textDecoration": "none",
+                                        "transition": "all 0.3s ease",
+                                    }),
+                                    dbc.NavLink("Get Stats", href="#summaries", className="nav-link-custom", style={
+                                        "color": "#081028",
+                                        "fontWeight": "bold",
+                                        "textDecoration": "none",
+                                        "transition": "all 0.3s ease",
+                                    }),
+                                    dbc.NavLink("Get Visualizations", href="#visualizations", className="nav-link-custom", style={
+                                        "color": "#081028",
+                                        "fontWeight": "bold",
+                                        "textDecoration": "none",
+                                        "transition": "all 0.3s ease",
+                                    }),
+                                    dbc.NavLink("Chat with Data", href="#chat", className="nav-link-custom", style={
+                                        "color": "#081028",
+                                        "fontWeight": "bold",
+                                        "textDecoration": "none",
+                                        "transition": "all 0.3s ease",
+                                    }),
+                                    dbc.NavLink(
+                                        "Logout",
+                                        id="logout-button",
+                                        href="/logout",
+                                        className="nav-link-custom",
                                         style={
-                                            "backgroundColor": "#2c1e4e",
                                             "color": "#dcd0ff",
-                                            "border": "1px solid #8ac4ff",
-                                            "borderRadius": "5px",
-                                            "padding": "10px",
-                                            "fontSize": "14px"
+                                            "padding": "8px 16px",
+                                            "borderRadius": "20px",
+                                            "background": "#8e44ad",
+                                            "border": "none",
+                                            "cursor": "pointer",
+                                            "transition": "all 0.3s ease",
+                                            "marginLeft": "1rem",
+                                            "whiteSpace": "nowrap",
+                                            "maxWidth": "200px",
+                                            "display": "inline-block",
+                                            "verticalAlign": "middle",
                                         }
                                     ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Specific ranges of interest:", style={"color": "#dcd0ff"}),
-                                    dbc.Input(
-                                        id='range-interest', type='text',
-                                        placeholder="e.g., Date range, value range",
-                                        style={
-                                            "backgroundColor": "#2c1e4e",
-                                            "color": "#dcd0ff",
-                                            "border": "1px solid #8ac4ff",
-                                            "borderRadius": "5px",
-                                            "padding": "10px",
-                                            "fontSize": "14px"
-                                        }
-                                    ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Story you want to tell with this data:", style={"color": "#dcd0ff"}),
-                                    dbc.Input(
-                                        id='story-goal', type='text',
-                                        placeholder="e.g., Sales growth over the last year",
-                                        style={
-                                            "backgroundColor": "#2c1e4e",
-                                            "color": "#dcd0ff",
-                                            "border": "1px solid #8ac4ff",
-                                            "borderRadius": "5px",
-                                            "padding": "10px",
-                                            "fontSize": "14px"
-                                        }
-                                    ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Specific parameters to check in the frontend:", style={"color": "#dcd0ff"}),
-                                    dbc.Input(
-                                        id='param-check', type='text',
-                                        placeholder="e.g., Certain columns or thresholds",
-                                        style={
-                                            "backgroundColor": "#2c1e4e",
-                                            "color": "#dcd0ff",
-                                            "border": "1px solid #8ac4ff",
-                                            "borderRadius": "5px",
-                                            "padding": "10px",
-                                            "fontSize": "14px"
-                                        }
-                                    ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Prioritize the visualization goals:", style={"color": "#dcd0ff"}),
-                                    dbc.Input(
-                                        id='viz-priority', type='text',
-                                        placeholder="e.g., 1. Correlation, 2. Trends",
-                                        style={
-                                            "backgroundColor": "#2c1e4e",
-                                            "color": "#dcd0ff",
-                                            "border": "1px solid #8ac4ff",
-                                            "borderRadius": "5px",
-                                            "padding": "10px",
-                                            "fontSize": "14px"
-                                        }
-                                    ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Enter the sample size to visualize:", style={"color": "#dcd0ff"}),
-                                    dbc.Input(
-                                        id='sample-size', type='number',
-                                        placeholder="e.g., 1000",
-                                        style={
-                                            "backgroundColor": "#2c1e4e",
-                                            "color": "#dcd0ff",
-                                            "border": "1px solid #8ac4ff",
-                                            "borderRadius": "5px",
-                                            "padding": "10px",
-                                            "fontSize": "14px"
-                                        }
-                                    ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Label("Select a color scheme:", style={"color": "#ffffff"}),
-                                    dcc.Dropdown(
-                                        id='color-scheme',
-                                        options=[
-                                            {'label': 'Plotly', 'value': 'Plotly'},
-                                            {'label': 'D3', 'value': 'D3'},
-                                            {'label': 'G10', 'value': 'G10'},
-                                            {'label': 'T10', 'value': 'T10'},
-                                            {'label': 'Alphabet', 'value': 'Alphabet'},
-                                            {'label': 'Dark24', 'value': 'Dark24'},
-                                            {'label': 'Light24', 'value': 'Light24'},
-                                            {'label': 'Set1', 'value': 'Set1'},
-                                            {'label': 'Pastel', 'value': 'Pastel'},
-                                            {'label': 'Viridis', 'value': 'Viridis'},
-                                            {'label': 'Cividis', 'value': 'Cividis'},
-                                            {'label': 'Inferno', 'value': 'Inferno'},
-                                            {'label': 'Magma', 'value': 'Magma'},
-                                            {'label': 'Plasma', 'value': 'Plasma'},
-                                        ],
-                                        value='Plotly',
-                                        placeholder="Select a color scheme",
-                                        style={
-                                            'backgroundColor': '#3a1c70',
-                                            'color': '#dcd0ff'
-                                        }
-                                    ),
-                                ], width=12),
-                            ], className="mb-3"),
-
-                            # Button Div with both Submit and Save buttons
-                            dbc.Row([
-                                dbc.Col([
-                                    dbc.Button(
-                                        "Generate Visualizations", 
-                                        id="submit-button", 
-                                        color="primary", 
-                                        className="mt-3 w-100",
-                                        style={
-                                            "fontWeight": "bold",
-                                            "backgroundColor": "#8e44ad",
-                                            "borderColor": "#7d3c98",
-                                            "boxShadow": "0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)"
-                                        }
-                                    ),
-                                ], width=6),
-                                dbc.Col([
-                                    dbc.Button(
-                                        "Save Dashboard", 
-                                        id="save-dashboard-button", 
-                                        color="success", 
-                                        className="mt-3 w-100",
-                                        style={
-                                            "fontWeight": "bold",
-                                            "backgroundColor": "#2ecc71",
-                                            "borderColor": "#27ae60",
-                                            "boxShadow": "0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)"
-                                        }
-                                    ),
-                                ], width=6),
-                            ]),
-                            
-                            # Status message for save operation
-                            html.Div(id="save-status", style={"marginTop": "10px", "color": "#ffffff"}),
-                        ])
-                    ]
-                ),
-
-                # 3) STATISTICAL SUMMARIES
-                dbc.Col(
-                    width=6,
-                    children=[
-                        html.H4("Statistical Summaries", style={"color": "#ffffff"}),
-                        dcc.Loading(
-                            id="loading-summary",
-                            type="default",
-                            children=html.Div(id='statistical-summary')
+                                ],
+                                className="ml-auto",
+                                navbar=True,
+                                style={
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "flex-end",
+                                    "gap": "2rem",
+                                    "flexWrap": "wrap",
+                                }
+                            ),
+                            width=True
                         )
-                    ]
-                )
+                    ], align="center", justify="between", style={"width": "100%"})
+                ], fluid=True)
             ]
         ),
 
-        html.Hr(style={"borderColor": "#dcd0ff"}),  # Purple line separator
-
-        # ---------------- GENERATED VISUALIZATIONS ----------------
+        # ---------------- MAIN CONTENT ----------------
         dbc.Container(
             fluid=True,
-            style={
-                "background": "linear-gradient(to right, #8e44ad, #3498db)",
-                "margin": "0",
-                "padding": "20px",
-                "borderRadius": "15px",
-                "boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                "width": "100%"
-            },
+            style={"maxWidth": "1200px", "margin": "0 auto", "padding": "20px"},
             children=[
-                html.H4(
-                    "Generated Visualizations",
-                    style={
-                        "color": "#ffffff",
-                        "textAlign": "center",
-                        "marginBottom": "20px"
-                    }
-                ),
-                dbc.Container(
-                    id='graphs-container',
-                    fluid=True,
-                    style={
-                        "margin": "20px auto",
-                        "padding": "20px",
-                        "borderRadius": "15px",
-                        "backgroundColor": "#081028",
-                        "boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.2)",
-                        "width": "90%",
-                        "color": "#ffffff"
-                    }
-                )
-            ]
-        ),
+                # Step 1: Upload CSV & Ingest
+                html.Div([
+                    html.H4(
+                        "Upload your Data and get started!",
+                        id="step1",
+                        className="section-anchor",
+                        style={
+                            "color": "transparent",
+                            "fontWeight": "bold",
+                            "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",
+                            "backgroundClip": "text",
+                            "WebkitBackgroundClip": "text",
+                            "marginBottom": "15px",
+                            "textAlign": "center"
+                        }
+                    ),
+                    dcc.Upload(
+                        id='upload-data',
+                        children=html.Div(
+                            ['Drag & Drop or ', html.A('Select File', style={"color": "#8ac4ff"})],
+                            style={'fontWeight': 'bold', "color": "#8ac4ff"}
+                        ),
+                        style={
+                            'width': '100%',
+                            'height': '60px',
+                            'lineHeight': '60px',
+                            'borderWidth': '2px',
+                            'borderStyle': 'dashed',
+                            'borderRadius': '10px',
+                            'textAlign': 'center',
+                            'backgroundColor': '#3a1c70',
+                            'background': 'linear-gradient(to right, #852cb7, #0f1134)',
+                            'color': '#dcd0ff',
+                            'boxSizing': 'border-box',
+                            'display': 'inline-block',
+                            'margin': '10px 0',
+                        },
+                        multiple=False
+                    ),
+                    html.Div(id='output-data-upload', style={"marginBottom": "10px", "textAlign": "center"}),
+                    dbc.Button(
+                        "Ingest CSV to Pinecone",
+                        id="ingest-button",
+                        color="success",
+                        className="mt-2",
+                        style={
+                            "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                            "border": "none",
+                            "color": "#fff",
+                            "padding": "10px 20px",
+                            "borderRadius": "20px",
+                            "fontSize": "14px",
+                            "cursor": "pointer",
+                            "marginBottom": "10px",
+                            "marginTop": "16px"
+                        }
+                    ),
+                    html.Div(id="ingest-status", style={"color": "#dcd0f2", "marginTop": "10px"}),
+                ]),
+                html.Hr(),
 
-        html.Hr(style={"borderColor": "#dcd0f2"}),
-
-        # ---------------- CHAT WITH CSV SECTION ----------------
-        dbc.Container(
-            fluid=True,
-            style={
-                "padding": "20px",
-                "backgroundColor": "#081028"
-            },
-            children=[
-                html.H3("Chat with Your CSV (Pinecone Data)", style={"color": "#ffffff", "marginBottom": "15px"}),
-                dbc.Card(
-                    style={"backgroundColor": "#2c1e4e", "padding": "15px", "border": "none"},
-                    children=[
+                # Step 2: Data Exploration Goals
+                html.Div([
+                    html.H4(
+                        "Now, set your goals and uncover some insights!",
+                        id="step2",
+                        className="section-anchor",
+                        style={
+                            "color": "transparent",
+                            "fontWeight": "bold",
+                            "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",
+                            "backgroundClip": "text",
+                            "WebkitBackgroundClip": "text",
+                            "marginBottom": "15px",
+                            "textAlign": "center"
+                        }
+                    ),
+                    dbc.Form([
                         dbc.Row([
                             dbc.Col([
-                                dcc.Input(
-                                    id="chat-input",
-                                    type="text",
-                                    placeholder="Ask a question about the data...",
+                                dbc.Label("Most important aspect to find in this dataset:", style={"color": "#dcd0ff"}),
+                                dbc.Input(
+                                    id='data-aspect',
+                                    type='text',
+                                    placeholder="e.g., Trends over time, correlations",
                                     style={
-                                        "width": "100%",
-                                        "backgroundColor": "#1d1b31",
-                                        "color": "#ffffff",
+                                        "color": "#dcd0ff",
                                         "border": "1px solid #8ac4ff",
-                                        "borderRadius": "5px",
+                                        "borderRadius": "10px",
                                         "padding": "10px",
-                                        "fontSize": "14px"
-                                    }
-                                )
-                            ], width=8),
-                            dbc.Col([
-                                html.Button(
-                                    "Ask Chatbot",
-                                    id="chat-button",
-                                    n_clicks=0,
-                                    style={
-                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
-                                        "border": "none",
-                                        "color": "#fff",
-                                        "padding": "10px 20px",
-                                        "borderRadius": "5px",
                                         "fontSize": "14px",
-                                        "marginLeft": "10px",
-                                        "cursor": "pointer"
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "backgroundColor": "transparent",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
                                     }
-                                )
-                            ], width=4, style={"textAlign": "right"})
-                        ], justify="start"),
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Time range of interest:", style={"color": "#dcd0ff"}),
+                                dbc.Input(
+                                    id='range-interest',
+                                    type='text',
+                                    placeholder="e.g., Last 5 years, specific date range",
+                                    style={
+                                        "color": "#dcd0ff",
+                                        "border": "1px solid #8ac4ff",
+                                        "borderRadius": "10px",
+                                        "padding": "10px",
+                                        "fontSize": "14px",
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "backgroundColor": "transparent",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
+                                    }
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Story goal:", style={"color": "#dcd0ff"}),
+                                dbc.Input(
+                                    id='story-goal',
+                                    type='text',
+                                    placeholder="e.g., Show growth trends, identify patterns",
+                                    style={
+                                        "color": "#dcd0ff",
+                                        "border": "1px solid #8ac4ff",
+                                        "borderRadius": "10px",
+                                        "padding": "10px",
+                                        "fontSize": "14px",
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "backgroundColor": "transparent",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
+                                    }
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Parameter to check:", style={"color": "#dcd0ff"}),
+                                dbc.Input(
+                                    id='param-check',
+                                    type='text',
+                                    placeholder="e.g., Sales, revenue, customer count",
+                                    style={
+                                        "color": "#dcd0ff",
+                                        "border": "1px solid #8ac4ff",
+                                        "borderRadius": "10px",
+                                        "padding": "10px",
+                                        "fontSize": "14px",
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "backgroundColor": "transparent",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
+                                    }
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Visualization priority:", style={"color": "#dcd0ff"}),
+                                dbc.Select(
+                                    id='viz-priority',
+                                    options=[
+                                        {'label': 'Trends', 'value': 'trends'},
+                                        {'label': 'Comparisons', 'value': 'comparisons'},
+                                        {'label': 'Distributions', 'value': 'distributions'},
+                                        {'label': 'Relationships', 'value': 'relationships'}
+                                    ],
+                                    style={
+                                        "color": "#303951",
+                                        "border": "1px solid #8ac4ff",
+                                        "borderRadius": "10px",
+                                        "padding": "10px",
+                                        "fontSize": "14px",
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
+                                    },
+                                    className="custom-select"
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Sample size:", style={"color": "#dcd0ff"}),
+                                dbc.Input(
+                                    id='sample-size',
+                                    type='number',
+                                    value=1000,
+                                    style={
+                                        "color": "#303951",
+                                        "border": "1px solid #8ac4ff",
+                                        "borderRadius": "10px",
+                                        "padding": "10px",
+                                        "fontSize": "14px",
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "backgroundColor": "transparent",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
+                                    }
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Color scheme:", style={"color": "#ffffff"}),
+                                dbc.Select(
+                                    id='color-scheme',
+                                    options=[
+                                        {'label': 'Plotly', 'value': 'Plotly'},
+                                        {'label': 'D3', 'value': 'D3'},
+                                        {'label': 'G10', 'value': 'G10'},
+                                        {'label': 'T10', 'value': 'T10'},
+                                        {'label': 'Alphabet', 'value': 'Alphabet'},
+                                        {'label': 'Dark24', 'value': 'Dark24'},
+                                        {'label': 'Light24', 'value': 'Light24'},
+                                        {'label': 'Set1', 'value': 'Set1'},
+                                        {'label': 'Pastel', 'value': 'Pastel'},
+                                        {'label': 'Viridis', 'value': 'Viridis'},
+                                        {'label': 'Cividis', 'value': 'Cividis'},
+                                        {'label': 'Inferno', 'value': 'Inferno'},
+                                        {'label': 'Magma', 'value': 'Magma'},
+                                        {'label': 'Plasma', 'value': 'Plasma'},
+                                    ],
+                                    value='Plotly',
+                                    style={
+                                        "color": "#303951",
+                                        "border": "1px solid #8ac4ff",
+                                        "borderRadius": "10px",
+                                        "padding": "10px",
+                                        "fontSize": "14px",
+                                        "boxSizing": "border-box",
+                                        "width": "100%",
+                                        "height": "60px",
+                                        "lineHeight": "60px",
+                                        "backgroundColor": "transparent",
+                                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                        "textAlign": "center",
+                                    }
+                                ),
+                            ])
+                        ]),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Button(
+                                    "Generate Visualizations", 
+                                    id="submit-button", 
+                                    color="primary", 
+                                    className="mt-3 w-100",
+                                    style={
+                                        "fontWeight": "bold",
+                                        "backgroundColor": "#8e44ad",
+                                        "borderColor": "#7d3c98",
+                                        "boxShadow": "0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)"
+                                    }
+                                ),
+                            ], width=6),
+                            dbc.Col([
+                                dbc.Button(
+                                    "Save Dashboard", 
+                                    id="save-dashboard-button", 
+                                    color="success", 
+                                    className="mt-3 w-100",
+                                    style={
+                                        "fontWeight": "bold",
+                                        "backgroundColor": "#2ecc71",
+                                        "borderColor": "#27ae60",
+                                        "boxShadow": "0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)"
+                                    }
+                                ),
+                            ], width=6),
+                        ]),
+                        html.Div(id="save-status", style={"marginTop": "10px", "color": "#ffffff"}),
+                    ]),
+                ]),
+                html.Hr(),
 
-                        html.Div(
-                            id="chat-response",
+                # Statistical Summaries
+                html.Div([
+                    html.H4(
+                        "See the numbers that matter!",
+                        id="summaries",
+                        className="section-anchor",
+                        style={
+                            "color": "transparent",
+                            "fontWeight": "bold",
+                            "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",
+                            "backgroundClip": "text",
+                            "WebkitBackgroundClip": "text",
+                            "marginBottom": "15px",
+                            "textAlign": "center"
+                        }
+                    ),
+                    html.Div(id="statistical-summary", style={"color": "#dcd0ff"})
+                ]),
+                html.Hr(),
+
+                # Generated Visualizations
+                html.Div([
+                    html.H4(
+                        "Let's visualize your data!",
+                        id="visualizations",
+                        className="section-anchor",
+                        style={
+                            "color": "transparent",
+                            "fontWeight": "bold",
+                            "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",
+                            "backgroundClip": "text",
+                            "WebkitBackgroundClip": "text",
+                            "marginBottom": "15px",
+                            "textAlign": "center"
+                        }
+                    ),
+                    dbc.Container(
+                        id='graphs-container',
+                        fluid=True,
+                        style={
+                            "margin": "20px auto",
+                            "padding": "20px",
+                            "borderRadius": "15px",
+                            "backgroundColor": "#081028",
+                            "boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.2)",
+                            "width": "90%",
+                            "color": "#ffffff"
+                        }
+                    )
+                ]),
+                html.Hr(),
+
+                # Chat with CSV
+                html.Div([
+                    html.H3("Dive deeper", id="chat", 
+                            className="section-anchor", 
                             style={
-                                "color": "#dcd0f2",
-                                "marginTop": "20px",
-                                "whiteSpace": "pre-wrap"
+                                "color": "transparent", 
+                                "fontWeight": "bold",  
+                                "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",  
+                                "backgroundClip": "text",  
+                                "WebkitBackgroundClip": "text",  
+                                "marginBottom": "15px", 
+                                "textAlign": "center"
+                            }),
+                    dbc.Card(
+                        style={"background": "linear-gradient(to right, #852cb7, #0f1134)", "padding": "20px", "border": "none"},
+                        children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    dcc.Input(
+                                        id="chat-input", type="text", 
+                                        placeholder="Ask me anything about your data!", 
+                                        style={
+                                            "width": "100%", 
+                                            "color": "#8ac4ff", 
+                                            "border": "1px solid #8ac4ff", 
+                                            "borderRadius": "10px",
+                                            "padding": "10px", 
+                                            "fontSize": "16px",
+                                            "boxSizing": "border-box",
+                                            "textAlign": "center",
+                                            "backgroundColor": "rgba(0, 0, 0, 0.2)",
+                                        }
+                                    )
+                                ], width=8),
+                                dbc.Col([
+                                    html.Button(
+                                        "Get the answer!", 
+                                        id="chat-button", 
+                                        n_clicks=0,
+                                        style={
+                                            "background": "linear-gradient(to right, #8e44ad, #3498db)", 
+                                            "border": "none", 
+                                            "color": "#fff", 
+                                            "padding": "12px 24px",
+                                            "borderRadius": "20px",
+                                            "fontSize": "16px",
+                                            "cursor": "pointer",
+                                            "width": "100%",
+                                            "transition": "background-color 0.3s",
+                                            "boxShadow": "0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)"
+                                        }
+                                    )
+                                ], width=4, style={"textAlign": "right"})
+                            ], justify="start"),
+                            html.Div(
+                                id="chat-response",
+                                style={
+                                    "color": "#dcd0f2",
+                                    "marginTop": "20px",
+                                    "whiteSpace": "pre-wrap",
+                                    "backgroundColor": "rgba(0, 0, 0, 0.2)",
+                                    "padding": "15px",
+                                    "borderRadius": "10px",
+                                    "boxShadow": "0px 4px 6px rgba(0, 0, 0, 0.2)",
+                                    "fontSize": "14px",
+                                    "lineHeight": "1.5"
+                                }
+                            )
+                        ]
+                    )
+                ]),
+                html.Hr(),
+
+                # Saved Dashboards & Chat History
+                dbc.Container(
+                    fluid=True,
+                    style={"padding": "20px", "backgroundColor": "#081028"},
+                    children=[
+                        html.H4(
+                            "Saved Dashboards",
+                            style={
+                                "color": "transparent",
+                                "fontWeight": "bold",
+                                "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",
+                                "backgroundClip": "text",
+                                "WebkitBackgroundClip": "text",
+                                "marginBottom": "15px",
+                                "textAlign": "center"
+                            }
+                        ),
+                        html.Ul(id="saved-dashboards", style={"color": "#ffffff", "listStyleType": "none"}),
+                        html.H4(
+                            "Check out your previous chats!",
+                            style={
+                                "color": "transparent",
+                                "fontWeight": "bold",
+                                "backgroundImage": "linear-gradient(to right, #8e44ad, #3498db)",
+                                "backgroundClip": "text",
+                                "WebkitBackgroundClip": "text",
+                                "marginBottom": "15px",
+                                "textAlign": "center"
+                            }
+                        ),
+                        html.Button(
+                            "Refresh Chat History",
+                            id="refresh-history-button",
+                            n_clicks=0,
+                            style={
+                                "background": "linear-gradient(to right, #8e44ad, #3498db)",
+                                "border": "none",
+                                "color": "#fff",
+                                "padding": "10px 20px",
+                                "borderRadius": "20px",
+                                "fontSize": "14px",
+                                "cursor": "pointer",
+                                "marginBottom": "10px"
+                            }
+                        ),
+                        dcc.Interval(id="interval-component", interval=5000, n_intervals=0),
+                        html.Ul(
+                            id="past-chats",
+                            style={
+                                "color": "#ffffff",
+                                "listStyleType": "none",
+                                "overflowY": "scroll",
+                                "maxHeight": "400px"
                             }
                         )
                     ]
                 )
             ]
-        ),
-
-        html.Hr(style={"borderColor": "#dcd0f2"}),
-
-        # ---------------- HISTORY SIDEBAR ----------------
-        dbc.Container(
-            fluid=True,
-            style={
-                "padding": "20px",
-                "backgroundColor": "#081028"
-            },
-            children=[
-                html.H4("Saved Dashboards", style={"color": "#ffffff", "textAlign": "center"}),
-                html.Ul(id="saved-dashboards", style={"color": "#ffffff", "listStyleType": "none"}),
-                html.H4("Past Chats", style={"color": "#ffffff", "textAlign": "center", "marginTop": "20px"}),
-                
-                # Add refresh controls for chat history:
-                html.Button(
-                    "Refresh Chat History",
-                    id="refresh-history-button",
-                    n_clicks=0,
-                    style={
-                        "background": "linear-gradient(to right, #8e44ad, #3498db)",
-                        "border": "none",
-                        "color": "#fff",
-                        "padding": "10px 20px",
-                        "borderRadius": "20px",  # Increased border radius for a rounder look
-                        "fontSize": "14px",
-                        "cursor": "pointer",
-                        "marginBottom": "10px"
-                    }
-                ),
-                dcc.Interval(id="interval-component", interval=30000, n_intervals=0, max_intervals=5),
-                
-                # Display past chats
-                html.Ul(id="past-chats", style={"color": "#ffffff", "listStyleType": "none", "overflowY": "scroll", "maxHeight": "400px"})
-            ]
         )
     ]
 )
-
-
 
 # -----------------------------------------
 # Utility / Helper Functions
@@ -1539,8 +1722,7 @@ def display_saved_dashboards(n_clicks, n_intervals):
 @app.callback(
     Output("past-chats", "children"),
     [Input("refresh-history-button", "n_clicks"),
-     Input("interval-component", "n_intervals")],
-    prevent_initial_call=False  # Allow initial call to populate the chat history
+     Input("interval-component", "n_intervals")]
 )
 def update_chat_history(n_clicks=None, n_intervals=None):
     try:
@@ -1549,60 +1731,57 @@ def update_chat_history(n_clicks=None, n_intervals=None):
         
         user_id = str(current_user.id)
         
-        # Query the chat_history document for this user
-        try:
-            doc = mongo_db["chat_history"].find_one({"user_id": user_id})
-            if not doc:
-                return [html.Div("No chat history", style={"color": "#aaa"})]
+        # Query the chat_history document for this user.
+        doc = mongo_db["chat_history"].find_one({"user_id": user_id})
+        if not doc:
+            return [html.Div("No chat history", style={"color": "#aaa"})]
+        
+        full_chat = doc.get("chat_history", [])
+        if not full_chat:
+            return [html.Div("No chat history", style={"color": "#aaa"})]
+        
+        chat_items = []
+        for entry in full_chat:
+            role = entry.get("role", "")
+            content = entry.get("content", "")
             
-            full_chat = doc.get("chat_history", [])
-            if not full_chat:
-                return [html.Div("No chat history", style={"color": "#aaa"})]
+            # Use improved chat bubble styling with gradients
+            if role == "user":
+                bubble_style = {
+                    "background": "linear-gradient(90deg, #8e44ad 0%, #3498db 100%)",  # purple to blue
+                    "color": "#fff",
+                    "padding": "12px 16px",
+                    "borderRadius": "15px",
+                    "maxWidth": "70%",
+                    "marginBottom": "8px",
+                    "alignSelf": "flex-end",
+                    "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)",
+                    "fontWeight": "bold"
+                }
+            else:
+                bubble_style = {
+                    "background": "linear-gradient(90deg, #8e44ad 0%, #3498db 100%)",  # yellow to green
+                    "color": "#000",
+                    "padding": "12px 16px",
+                    "borderRadius": "15px",
+                    "maxWidth": "70%",
+                    "marginBottom": "8px",
+                    "alignSelf": "flex-start",
+                    "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)"
+                }
             
-            chat_items = []
-            for entry in full_chat:
-                role = entry.get("role", "")
-                content = entry.get("content", "")
-                
-                # Use improved chat bubble styling
-                if role == "user":
-                    bubble_style = {
-                        "backgroundColor": "#f1f0f0",
-                        "color": "#000",
-                        "padding": "12px 16px",
-                        "borderRadius": "15px",
-                        "maxWidth": "70%",
-                        "marginBottom": "8px",
-                        "alignSelf": "flex-end",
-                        "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)"
-                    }
-                else:
-                    bubble_style = {
-                        "backgroundColor": "#f5f507",
-                        "color": "#000",
-                        "padding": "12px 16px",
-                        "borderRadius": "15px",
-                        "maxWidth": "70%",
-                        "marginBottom": "8px",
-                        "alignSelf": "flex-start",
-                        "boxShadow": "2px 2px 5px rgba(0,0,0,0.15)"
-                    }
-                
-                chat_block = html.Div([
-                    html.Div(content, style=bubble_style)
-                ], style={
-                    "display": "flex",
-                    "flexDirection": "column",
-                    "marginBottom": "15px",
-                    "padding": "10px"
-                })
-                chat_items.append(chat_block)
-            
-            return chat_items
-            
-        except Exception as mongo_error:
-            print(f"MongoDB error: {mongo_error}")
-            return [html.Div("Error accessing chat history", style={"color": "red"})]
+            # Wrap each chat bubble in a container to control layout and spacing.
+            chat_block = html.Div([
+                html.Div(content, style=bubble_style),
+            ], style={
+                "display": "flex",
+                "flexDirection": "column",
+                "marginBottom": "15px",
+                "padding": "10px"
+            })
+            chat_items.append(chat_block)
+        
+        return chat_items
     
     except Exception as e:
         print(f"Error updating chat history: {e}")

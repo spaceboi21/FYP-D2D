@@ -399,21 +399,11 @@ async def stream_agent_response(agent_executor, user_query, user_id, messages):
 # ---------------------------------------------------
 @app.post("/upload_csv")
 def upload_csv(payload: UploadCSVModel):
-    """
-    Expects JSON like:
-    {
-      "session_id": "...",
-      "user_id": "...",
-      "csv_base64": "base64 CSV data"
-    }
-    Decodes + splits CSV, upserts into 'fyp' Pinecone index using user's namespace.
-    """
     print(f"DEBUG: upload_csv endpoint called with session_id={payload.session_id}, user_id={payload.user_id}, csv_data_length={len(payload.csv_base64) if payload.csv_base64 else 0}")
     try:
         # Make sure we have a valid user_id
         if not payload.user_id:
             if payload.session_id:
-                # Fall back to session_id if user_id is missing
                 payload.user_id = payload.session_id
             else:
                 raise ValueError("Either user_id or session_id must be provided")
@@ -421,12 +411,9 @@ def upload_csv(payload: UploadCSVModel):
         # Create a unique namespace for the user
         user_namespace = f"user_{payload.user_id}"
         
-        # First check if the user already has data - if so, delete it to avoid mixed CSV data issues
+        # First check if the user already has data - if so, delete it
         try:
-            # Try to get the Pinecone index
             index = pc.Index(index_name)
-            
-            # Delete the existing namespace for the user if it exists
             stats = index.describe_index_stats()
             if user_namespace in stats.namespaces:
                 print(f"DEBUG: Deleting existing namespace {user_namespace} for user {payload.user_id}")
@@ -434,7 +421,6 @@ def upload_csv(payload: UploadCSVModel):
                 print(f"DEBUG: Successfully deleted namespace {user_namespace}")
         except Exception as e:
             print(f"DEBUG: Error checking/clearing user namespace: {e}")
-            # Continue with the upload anyway
         
         # Process the CSV data
         raw_b64 = payload.csv_base64
@@ -453,25 +439,48 @@ def upload_csv(payload: UploadCSVModel):
 
         print(f"DEBUG: CSV loaded successfully with {len(df)} rows and {len(df.columns)} columns")
         
-        # Convert entire CSV to text, chunk it, then store
-        csv_text = df.to_csv(index=False)
-        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-        chunks = splitter.split_text(csv_text)
-        docs = [Document(page_content=ch) for ch in chunks]
-        print(f"DEBUG: Created {len(docs)} document chunks")
-
-        # Use the user-specific namespace for vector storage
+        # Convert CSV to text in smaller chunks to avoid memory issues
+        chunk_size = 100  # Process 100 rows at a time
+        total_chunks = (len(df) + chunk_size - 1) // chunk_size
+        processed_chunks = 0
+        
         store = PineconeVectorStore(
             index_name=index_name,
             embedding=OpenAIEmbeddings(model="text-embedding-ada-002", openai_api_key=OPENAI_API_KEY),
             namespace=user_namespace
         )
         
-        # Add the documents to Pinecone
-        store.add_documents(docs)
-        print(f"DEBUG: Documents added to Pinecone successfully in namespace {user_namespace}")
+        for i in range(0, len(df), chunk_size):
+            chunk_df = df.iloc[i:i + chunk_size]
+            chunk_text = chunk_df.to_csv(index=False)
+            
+            # Split text into smaller chunks
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=500,  # Reduced chunk size
+                chunk_overlap=50,  # Small overlap to maintain context
+                length_function=len,
+                separators=["\n\n", "\n", " ", ""]
+            )
+            chunks = splitter.split_text(chunk_text)
+            docs = [Document(page_content=ch) for ch in chunks]
+            
+            # Add chunks to Pinecone with retries
+            max_retries = 3
+            for retry in range(max_retries):
+                try:
+                    store.add_documents(docs)
+                    break
+                except Exception as e:
+                    if retry == max_retries - 1:
+                        print(f"DEBUG: Failed to add chunk {processed_chunks + 1}/{total_chunks} after {max_retries} retries: {e}")
+                        raise
+                    print(f"DEBUG: Retry {retry + 1} for chunk {processed_chunks + 1}")
+                    time.sleep(2 ** retry)  # Exponential backoff
+            
+            processed_chunks += 1
+            print(f"DEBUG: Processed chunk {processed_chunks}/{total_chunks}")
         
-        # Update user info in MongoDB to track which users have uploaded data
+        # Update user info in MongoDB
         if mongo_client is not None and mongo_db is not None:
             try:
                 user_collection = mongo_db.get_collection("users")
@@ -488,9 +497,9 @@ def upload_csv(payload: UploadCSVModel):
                 print(f"DEBUG: Updated user upload info in MongoDB for user {payload.user_id}")
             except Exception as mongo_err:
                 print(f"DEBUG: Error updating MongoDB user info: {mongo_err}")
-                # Non-critical error, continue
         
-        return {"status":"success", "rows_ingested": len(df), "namespace": user_namespace}
+        return {"status": "success", "rows_ingested": len(df), "namespace": user_namespace}
+        
     except ValueError as ve:
         print(f"DEBUG: Validation error in upload_csv: {str(ve)}")
         raise HTTPException(status_code=400, detail=str(ve))
